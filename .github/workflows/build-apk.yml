@@ -1,0 +1,62 @@
+name: Build TaiXu APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Locate NDK
+        run: |
+          NDK=$(ls $ANDROID_HOME/ndk | head -1)
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> $GITHUB_ENV
+          echo "NDK version: $NDK"
+
+      - name: Grant gradlew exec
+        run: chmod +x gradlew
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: false
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          set -eo pipefail
+          ./gradlew :app:assembleDebug --no-daemon 2>&1 | tee build.log
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: warn
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taixu64-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: SHA256
+        if: success()
+        run: sha256sum app/build/outputs/apk/debug/*.apk
