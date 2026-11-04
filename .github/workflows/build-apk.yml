@@ -13,7 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 1
 
       - uses: actions/setup-java@v4
@@ -21,13 +20,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
 
       - name: Locate NDK
         run: |
-          NDK=$(ls $ANDROID_HOME/ndk | head -1)
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> $GITHUB_ENV
-          echo "NDK version: $NDK"
+          NDK=$(ls $ANDROID_HOME/ndk 2>/dev/null | head -1 || true)
+          if [ -n "$NDK" ]; then
+            echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> $GITHUB_ENV
+            echo "NDK version: $NDK"
+          else
+            echo "No NDK preinstalled on runner"
+          fi
 
       - name: Grant gradlew exec
         run: chmod +x gradlew
